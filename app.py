@@ -2,11 +2,18 @@ import streamlit as st
 import requests
 import pandas as pd
 
-# Page configuration
-st.set_page_config(page_title="India Air Quality Analyzer", page_icon="🌫️", layout="wide")
+# 1. Page Configuration
+st.set_page_config(
+    page_title="India Air Quality Analyzer",
+    page_icon="🌫️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-st.title("🌫️ Air Quality Analysis of Indian Cities")
-st.markdown("Real-time AQI, PM2.5, PM10, and pollutant breakdown across major Indian cities.")
+# App Title & Intro
+st.title("🌫️ India Air Quality Intelligence")
+st.markdown("Monitor real-time air pollution levels, health risks, and pollutant trends across major Indian cities.")
+st.divider()
 
 # Coordinates for major Indian cities
 CITIES = {
@@ -34,86 +41,98 @@ def fetch_air_quality(lat, lon):
 
 def get_aqi_category(aqi):
     if aqi <= 50:
-        return "Good", "🟢"
+        return "Good", "🟢", "Air quality is satisfactory and poses little or no risk."
     elif aqi <= 100:
-        return "Moderate", "🟡"
+        return "Moderate", "🟡", "Acceptable quality; sensitive individuals may experience minor irritation."
     elif aqi <= 150:
-        return "Unhealthy for Sensitive Groups", "🟠"
+        return "Unhealthy for Sensitive Groups", "🟠", "Elderly and children should reduce outdoor exertion."
     elif aqi <= 200:
-        return "Unhealthy", "🔴"
+        return "Unhealthy", "🔴", "Everyone may begin to experience health effects."
     elif aqi <= 300:
-        return "Very Unhealthy", "🟣"
+        return "Very Unhealthy", "🟣", "Health alert: everyone may experience more serious health effects."
     else:
-        return "Hazardous", "🟤"
+        return "Hazardous", "🟤", "Health warning of emergency conditions. Stay indoors."
 
-# Sidebar for city selection
-st.sidebar.header("Dashboard Controls")
-selected_city = st.sidebar.selectbox("Select Primary City for Deep Analysis", list(CITIES.keys()))
+# --- SIDEBAR CONTROLS ---
+st.sidebar.header("🎛️ Control Panel")
+selected_city = st.sidebar.selectbox("Select City for Deep Dive", list(CITIES.keys()))
 compare_cities = st.sidebar.multiselect(
-    "Select Cities to Compare", list(CITIES.keys()), default=["New Delhi", "Mumbai", "Bengaluru", "Kolkata"]
+    "Select Cities for Comparison", 
+    list(CITIES.keys()), 
+    default=["New Delhi", "Mumbai", "Bengaluru", "Kolkata"]
 )
 
-# --- SECTION 1: Selected City Overview ---
-st.header(f"📍 Live Air Quality: {selected_city}")
-lat, lon = CITIES[selected_city]
-data = fetch_air_quality(lat, lon)
-current = data["current"]
+# --- CREATE CLEAN TABS ---
+tab1, tab2 = st.tabs(["📍 City Deep Dive", "🏙️ Multi-City Comparison"])
 
-aqi_val = current["us_aqi"]
-category, icon = get_aqi_category(aqi_val)
-
-# Key Metrics Row
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Current AQI (US Standard)", f"{aqi_val} {icon}", category)
-col2.metric("PM2.5 (µg/m³)", f"{current['pm2_5']}")
-col3.metric("PM10 (µg/m³)", f"{current['pm10']}")
-col4.metric("Nitrogen Dioxide (NO₂)", f"{current['nitrogen_dioxide']} µg/m³")
-
-# Hourly Trend Chart
-st.subheader(f"📈 24-Hour Pollutant Trend ({selected_city})")
-hourly_df = pd.DataFrame({
-    "Time": pd.to_datetime(data["hourly"]["time"]),
-    "PM2.5 (µg/m³)": data["hourly"]["pm2_5"],
-    "PM10 (µg/m³)": data["hourly"]["pm10"],
-    "AQI": data["hourly"]["us_aqi"]
-}).set_index("Time")
-
-st.line_chart(hourly_df[["PM2.5 (µg/m³)", "PM10 (µg/m³)"]])
-
-# --- SECTION 2: Multi-City Comparison ---
-if compare_cities:
-    st.divider()
-    st.header("🏙️ Multi-City Comparison")
+# ================= TAB 1: CITY DEEP DIVE =================
+with tab1:
+    st.subheader(f"Live Status: {selected_city}")
     
-    comp_list = []
-    for city in compare_cities:
-        c_lat, c_lon = CITIES[city]
-        c_data = fetch_air_quality(c_lat, c_lon)["current"]
-        cat, _ = get_aqi_category(c_data["us_aqi"])
-        comp_list.append({
-            "City": city,
-            "lat": c_lat,
-            "lon": c_lon,
-            "AQI": c_data["us_aqi"],
-            "Status": cat,
-            "PM2.5": c_data["pm2_5"],
-            "PM10": c_data["pm10"],
-            "CO": c_data["carbon_monoxide"],
-            "SO₂": c_data["sulphur_dioxide"],
-            "O₃": c_data["ozone"]
-        })
-    
-    comp_df = pd.DataFrame(comp_list)
-    
-    # Bar chart & Data table side by side
-    left_col, right_col = st.columns([1.2, 1])
-    with left_col:
-        st.subheader("AQI Comparison")
-        st.bar_chart(comp_df.set_index("City")["AQI"])
-    with right_col:
-        st.subheader("Detailed Pollutant Breakdown")
-        st.dataframe(comp_df.drop(columns=["lat", "lon"]), use_container_width=True)
+    lat, lon = CITIES[selected_city]
+    data = fetch_air_quality(lat, lon)
+    current = data["current"]
 
-    # Interactive Map
-    st.subheader("🗺️ Geographic View")
-    st.map(comp_df[["lat", "lon"]])
+    aqi_val = current["us_aqi"]
+    category, icon, advice = get_aqi_category(aqi_val)
+
+    # Metrics Row
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("US AQI Index", f"{aqi_val} {icon}", category)
+    col2.metric("PM2.5 (Fine Particles)", f"{current['pm2_5']} µg/m³")
+    col3.metric("PM10 (Coarse Dust)", f"{current['pm10']} µg/m³")
+    col4.metric("Nitrogen Dioxide (NO₂)", f"{current['nitrogen_dioxide']} µg/m³")
+
+    # Health Advisory Box
+    st.info(f"💡 **Health Advisory:** {advice}")
+
+    # Hourly Trend Chart
+    st.markdown("### 📈 24-Hour Pollutant Trend")
+    hourly_df = pd.DataFrame({
+        "Time": pd.to_datetime(data["hourly"]["time"]),
+        "PM2.5 (µg/m³)": data["hourly"]["pm2_5"],
+        "PM10 (µg/m³)": data["hourly"]["pm10"]
+    }).set_index("Time")
+
+    st.line_chart(hourly_df, use_container_width=True)
+
+# ================= TAB 2: MULTI-CITY COMPARISON =================
+with tab2:
+    st.subheader("City-by-City Air Quality Comparison")
+    
+    if not compare_cities:
+        st.warning("Please select at least one city from the sidebar to compare.")
+    else:
+        comp_list = []
+        for city in compare_cities:
+            c_lat, c_lon = CITIES[city]
+            c_data = fetch_air_quality(c_lat, c_lon)["current"]
+            cat, _, _ = get_aqi_category(c_data["us_aqi"])
+            comp_list.append({
+                "City": city,
+                "lat": c_lat,
+                "lon": c_lon,
+                "AQI": c_data["us_aqi"],
+                "Status": cat,
+                "PM2.5": c_data["pm2_5"],
+                "PM10": c_data["pm10"],
+                "CO": c_data["carbon_monoxide"],
+                "SO₂": c_data["sulphur_dioxide"]
+            })
+        
+        comp_df = pd.DataFrame(comp_list)
+        
+        # Side-by-side layout for chart and table
+        col_left, col_right = st.columns([1.2, 1])
+        
+        with col_left:
+            st.markdown("#### AQI Levels Bar Chart")
+            st.bar_chart(comp_df.set_index("City")["AQI"], use_container_width=True)
+            
+        with col_right:
+            st.markdown("#### Detailed Data Table")
+            st.dataframe(comp_df.drop(columns=["lat", "lon"]), use_container_width=True)
+
+        # Geographic Map View
+        st.markdown("#### 🗺️ Geographic Distribution")
+        st.map(comp_df[["lat", "lon"]], zoom=4, use_container_width=True)
