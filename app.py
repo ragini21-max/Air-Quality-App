@@ -102,7 +102,7 @@ with tab2:
         fig_line.update_layout(yaxis_title="AQI Level", xaxis_title="Date")
         st.plotly_chart(fig_line, use_container_width=True)
 
-        # 2. India Physical Map with State Boundaries SECOND
+        # 2. Mapbox India Map with Clear State Boundaries SECOND
         st.subheader("📍 Geographic Location of Compared Cities (India)")
         map_df = pd.DataFrame([
             {
@@ -115,7 +115,7 @@ with tab2:
             for city in selected_cities
         ])
 
-        fig_map = px.scatter_geo(
+        fig_map = px.scatter_mapbox(
             map_df,
             lat="lat",
             lon="lon",
@@ -125,31 +125,10 @@ with tab2:
             color_continuous_scale="RdYlGn_r",
             hover_name="City",
             hover_data={"State": True, "Current AQI": True, "lat": False, "lon": False},
-            size_max=22
-        )
-
-        # Configure map to show ONLY India with state boundaries and physical land styling
-        fig_map.update_geos(
-            visible=True,
-            resolution=50,
-            scope="asia",
-            showcountries=True,
-            countrycolor="Black",
-            countrywidth=1.5,
-            showsubunits=True,          # Displays Indian State Boundaries
-            subunitcolor="DarkSlateGray",
-            subunitwidth=0.8,
-            showland=True,
-            landcolor="#EFECE6",        # Physical landmass tone
-            showocean=True,
-            oceancolor="#D6EAF8",       # Ocean water tone
-            lataxis_range=[6.5, 37.5],  # Clips North-South bounds strictly to India
-            lonaxis_range=[67.5, 98.0]  # Clips East-West bounds strictly to India
-        )
-
-        fig_map.update_traces(
-            textposition="top center",
-            textfont=dict(size=12, color="black", family="Arial Black")
+            zoom=4.2,
+            center={"lat": 22.5, "lon": 82.5}, # Centered exactly over India
+            mapbox_style="open-street-map",     # Renders clear state boundaries & cartography
+            size_max=20
         )
 
         fig_map.update_layout(
